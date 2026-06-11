@@ -1,11 +1,10 @@
-import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 import java.io.*;
-import javax.imageio.ImageIO;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
+import javax.swing.*;
 
 public class YouTubeDownloaderGUI extends JFrame {
     private JTextField urlField;
@@ -35,8 +34,12 @@ public class YouTubeDownloaderGUI extends JFrame {
 
         // Load icon
         try {
-            Image icon = ImageIO.read(getClass().getResource("yt_icon.png"));
-            setIconImage(icon);
+            // Load icon from working directory (next to the class/jar)
+            File iconFile = new File("yt_icon.png");
+            if (iconFile.exists()) {
+                Image icon = ImageIO.read(iconFile);
+                setIconImage(icon);
+            }
         } catch (Exception ignored) {}
 
         // Top Panel

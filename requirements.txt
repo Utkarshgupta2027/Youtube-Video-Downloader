@@ -1,0 +1,2 @@
+yt-dlp>=2024.6.4
+# Optional: if you need ffmpeg for post-processing, install it separately and ensure it's in PATH
