@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 
 public class YouTubeDownloaderGUI extends JFrame {
     private JTextField urlField;
@@ -13,6 +14,7 @@ public class YouTubeDownloaderGUI extends JFrame {
     private JProgressBar downloadProgressBar;
     private JToggleButton themeSwitchButton;
     private boolean darkMode = true;
+    private JLabel statusLabel;
 
     private DefaultListModel<String> historyModel;
     private JList<String> historyList;
@@ -25,6 +27,16 @@ public class YouTubeDownloaderGUI extends JFrame {
     private final Color lightText = Color.BLACK;
 
     public YouTubeDownloaderGUI() {
+        // Try to use Nimbus L&F for a modern look
+        try {
+            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (Exception ignored) {}
+
         setTitle("YouTube Video Downloader");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(700, 600);
@@ -42,22 +54,37 @@ public class YouTubeDownloaderGUI extends JFrame {
             }
         } catch (Exception ignored) {}
 
-        // Top Panel
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBorder(BorderFactory.createEmptyBorder(16, 16, 0, 16));
+        // Header with logo and URL field
+        JPanel header = new JPanel(new BorderLayout(12, 12));
+        header.setBorder(new EmptyBorder(14, 14, 8, 14));
 
-        JLabel urlLabel = new JLabel("YouTube URL:");
-        urlLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        // App title + logo
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        titlePanel.setOpaque(false);
+        try {
+            File iconFile = new File("yt_icon.png");
+            if (iconFile.exists()) {
+                Image img = ImageIO.read(iconFile).getScaledInstance(36, 36, Image.SCALE_SMOOTH);
+                JLabel logo = new JLabel(new ImageIcon(img));
+                titlePanel.add(logo);
+            }
+        } catch (Exception ignored) {}
+        JLabel title = new JLabel("YouTube Downloader");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        titlePanel.add(title);
 
-        urlField = new JTextField();
-        urlField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        urlField.setMargin(new Insets(10, 10, 10, 10));
+        header.add(titlePanel, BorderLayout.WEST);
 
+        // URL input
         JPanel urlPanel = new JPanel(new BorderLayout(8, 8));
+        urlPanel.setOpaque(false);
+        JLabel urlLabel = new JLabel("YouTube URL:");
+        urlLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        urlField = new JTextField();
+        urlField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        urlField.setMargin(new Insets(10, 10, 10, 10));
         urlPanel.add(urlLabel, BorderLayout.WEST);
         urlPanel.add(urlField, BorderLayout.CENTER);
-
-        topPanel.add(urlPanel, BorderLayout.CENTER);
 
         // Theme Switch
         themeSwitchButton = new JToggleButton();
@@ -65,60 +92,97 @@ public class YouTubeDownloaderGUI extends JFrame {
         themeSwitchButton.setUI(new ModernSwitchUI());
         themeSwitchButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         themeSwitchButton.addActionListener(e -> switchTheme());
-        topPanel.add(themeSwitchButton, BorderLayout.EAST);
 
-        add(topPanel, BorderLayout.NORTH);
+        JPanel rightHeader = new JPanel(new BorderLayout());
+        rightHeader.setOpaque(false);
+        rightHeader.add(themeSwitchButton, BorderLayout.EAST);
 
-        // Center Panel with buttons
-        JPanel centerPanel = new JPanel();
-        centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
-        centerPanel.setBorder(BorderFactory.createEmptyBorder(20, 50, 20, 50));
+        header.add(urlPanel, BorderLayout.CENTER);
+        header.add(rightHeader, BorderLayout.EAST);
+
+        add(header, BorderLayout.NORTH);
+
+        // Main center panel with controls
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(new EmptyBorder(12, 20, 12, 20));
+
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 12));
+        controls.setOpaque(false);
 
         downloadButton = new JButton("Download");
-        styleButton(downloadButton, new Color(255, 0, 43));
-        downloadButton.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        styleButton(downloadButton, new Color(220, 20, 60));
+        downloadButton.setFont(new Font("Segoe UI", Font.BOLD, 18));
         downloadButton.addActionListener(e -> downloadVideo());
-        centerPanel.add(downloadButton);
-        centerPanel.add(Box.createRigidArea(new Dimension(0, 20)));
 
         goToYouTubeButton = new JButton("Go to YouTube");
-        styleButton(goToYouTubeButton, new Color(230, 33, 23));
-        goToYouTubeButton.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        styleButton(goToYouTubeButton, new Color(200, 30, 30));
+        goToYouTubeButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
         goToYouTubeButton.addActionListener(ev -> openYouTube());
-        centerPanel.add(goToYouTubeButton);
 
-        add(centerPanel, BorderLayout.CENTER);
+        controls.add(downloadButton);
+        controls.add(goToYouTubeButton);
 
-        // Bottom Panel with log, progress, and history
+        mainPanel.add(controls, BorderLayout.NORTH);
+
+        add(mainPanel, BorderLayout.CENTER);
+
+        // Bottom Panel with log and progress
         JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 16, 10));
+        bottomPanel.setBorder(new EmptyBorder(10, 16, 16, 16));
 
-        outputArea = new JTextArea(5, 50);
+        outputArea = new JTextArea(6, 50);
         outputArea.setEditable(false);
-        outputArea.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        outputArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         outputArea.setLineWrap(true);
         outputArea.setWrapStyleWord(true);
+        outputArea.setOpaque(true);
+        outputArea.setBorder(BorderFactory.createLineBorder(new Color(200,200,200),1,true));
 
         JScrollPane scrollPane = new JScrollPane(outputArea);
+        scrollPane.setBorder(BorderFactory.createEmptyBorder());
         bottomPanel.add(scrollPane, BorderLayout.CENTER);
 
+        JPanel progressPanel = new JPanel(new BorderLayout(8,8));
+        progressPanel.setOpaque(false);
         downloadProgressBar = new JProgressBar(0, 100);
         downloadProgressBar.setStringPainted(true);
         downloadProgressBar.setVisible(false);
-        downloadProgressBar.setForeground(new Color(255, 69, 58));
-        bottomPanel.add(downloadProgressBar, BorderLayout.SOUTH);
+        downloadProgressBar.setForeground(new Color(220,20,60));
+
+        statusLabel = new JLabel("Ready");
+        statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+        progressPanel.add(statusLabel, BorderLayout.WEST);
+        progressPanel.add(downloadProgressBar, BorderLayout.CENTER);
+        bottomPanel.add(progressPanel, BorderLayout.SOUTH);
 
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Download History
+        // Download History (right side)
         historyModel = new DefaultListModel<>();
         historyList = new JList<>(historyModel);
-        historyList.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        historyList.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         JScrollPane historyScroll = new JScrollPane(historyList);
-        historyScroll.setPreferredSize(new Dimension(200, 120));
-        JPanel historyPanel = new JPanel(new BorderLayout());
+        historyScroll.setPreferredSize(new Dimension(240, 200));
+
+        JPanel historyPanel = new JPanel(new BorderLayout(8,8));
         historyPanel.setBorder(BorderFactory.createTitledBorder("Download History"));
         historyPanel.add(historyScroll, BorderLayout.CENTER);
+
+        JPanel historyButtons = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 6));
+        JButton openDownloadsBtn = new JButton("Open Downloads");
+        styleButton(openDownloadsBtn, new Color(70,130,180));
+        openDownloadsBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        openDownloadsBtn.addActionListener(e -> openDownloads());
+
+        JButton clearHistoryBtn = new JButton("Clear");
+        styleButton(clearHistoryBtn, new Color(150,150,150));
+        clearHistoryBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        clearHistoryBtn.addActionListener(e -> historyModel.clear());
+
+        historyButtons.add(openDownloadsBtn);
+        historyButtons.add(clearHistoryBtn);
+        historyPanel.add(historyButtons, BorderLayout.SOUTH);
 
         add(historyPanel, BorderLayout.EAST);
 
@@ -177,6 +241,7 @@ public class YouTubeDownloaderGUI extends JFrame {
                             downloadProgressBar.setIndeterminate(false);
                             downloadProgressBar.setValue(pct);
                             downloadProgressBar.setString(pct + "%");
+                            statusLabel.setText(pct + "%");
                         });
                     }
                 }
@@ -186,11 +251,13 @@ public class YouTubeDownloaderGUI extends JFrame {
                     downloadProgressBar.setValue(100);
                     downloadProgressBar.setString("100%");
                     outputArea.append("\nDownload completed.");
+                    statusLabel.setText("Completed");
                     addHistory(url, "Completed");
                 });
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     outputArea.setText("Error: " + ex.getMessage());
+                    statusLabel.setText("Error");
                     addHistory(url, "Error");
                 });
             } finally {
@@ -200,6 +267,16 @@ public class YouTubeDownloaderGUI extends JFrame {
                 });
             }
         }).start();
+    }
+
+    private void openDownloads() {
+        try {
+            File downloadsDir = new File(System.getProperty("user.dir"), "downloads");
+            if (!downloadsDir.exists()) downloadsDir.mkdirs();
+            Desktop.getDesktop().open(downloadsDir);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Unable to open downloads folder:\n" + e.getMessage());
+        }
     }
 
     private void addHistory(String url, String status) {
