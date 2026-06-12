@@ -1,6 +1,8 @@
 import java.awt.*;
 import java.io.*;
 import java.net.URI;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -19,6 +21,10 @@ public class YouTubeDownloaderGUI extends JFrame {
     private DefaultListModel<String> historyModel;
     private JList<String> historyList;
     private List<String> downloadPaths;
+
+    // History file path
+    private static final String HISTORY_FILE = "history.txt";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // Theme Colors
     private final Color darkBg = new Color(30, 30, 40);
@@ -178,7 +184,10 @@ public class YouTubeDownloaderGUI extends JFrame {
         JButton clearHistoryBtn = new JButton("Clear");
         styleButton(clearHistoryBtn, new Color(150,150,150));
         clearHistoryBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        clearHistoryBtn.addActionListener(e -> historyModel.clear());
+        clearHistoryBtn.addActionListener(e -> {
+            historyModel.clear();
+            saveHistory();
+        });
 
         historyButtons.add(openDownloadsBtn);
         historyButtons.add(clearHistoryBtn);
@@ -189,6 +198,7 @@ public class YouTubeDownloaderGUI extends JFrame {
         downloadPaths = new ArrayList<>();
 
         applyTheme();
+        loadHistory();
         setVisible(true);
     }
 
@@ -280,7 +290,37 @@ public class YouTubeDownloaderGUI extends JFrame {
     }
 
     private void addHistory(String url, String status) {
-        historyModel.addElement(status + " - " + url);
+        String timestamp = LocalDateTime.now().format(DATE_FORMATTER);
+        String historyEntry = "[" + timestamp + "] " + status + " - " + url;
+        historyModel.addElement(historyEntry);
+        saveHistory();
+    }
+
+    private void loadHistory() {
+        File historyFile = new File(HISTORY_FILE);
+        if (!historyFile.exists()) return;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(historyFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    historyModel.addElement(line);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error loading history: " + e.getMessage());
+        }
+    }
+
+    private void saveHistory() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(HISTORY_FILE))) {
+            for (int i = 0; i < historyModel.getSize(); i++) {
+                writer.write(historyModel.getElementAt(i));
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            System.err.println("Error saving history: " + e.getMessage());
+        }
     }
 
     private Integer parseProgressPercent(String line) {
