@@ -228,6 +228,15 @@ public class YouTubeDownloaderGUI extends JFrame {
             return;
         }
 
+        if (!isValidYouTubeURL(url)) {
+            outputArea.setText("Invalid YouTube URL. Please enter a valid URL like:\n" +
+                    "  • https://www.youtube.com/watch?v=VIDEO_ID\n" +
+                    "  • https://youtu.be/VIDEO_ID\n" +
+                    "  • https://www.youtube.com/playlist?list=PLAYLIST_ID");
+            statusLabel.setText("Invalid URL");
+            return;
+        }
+
         outputArea.setText("Downloading, please wait...");
         downloadProgressBar.setVisible(true);
         downloadProgressBar.setIndeterminate(true);
@@ -321,6 +330,18 @@ public class YouTubeDownloaderGUI extends JFrame {
         } catch (IOException e) {
             System.err.println("Error saving history: " + e.getMessage());
         }
+    }
+
+    private boolean isValidYouTubeURL(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+
+        url = url.toLowerCase();
+
+        // Check for common YouTube URL patterns
+        return url.contains("youtube.com") || url.contains("youtu.be") ||
+               url.contains("youtube-nocookie.com");
     }
 
     private Integer parseProgressPercent(String line) {
