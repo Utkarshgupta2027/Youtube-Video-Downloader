@@ -17,6 +17,7 @@ public class YouTubeDownloaderGUI extends JFrame {
     private JTextArea outputArea;
     private JProgressBar downloadProgressBar;
     private JToggleButton themeSwitchButton;
+    private JComboBox<String> formatComboBox;  // Format/Quality selector
     private boolean darkMode = true;
     private JLabel statusLabel;
 
@@ -119,6 +120,33 @@ public class YouTubeDownloaderGUI extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBorder(new EmptyBorder(12, 20, 12, 20));
 
+        // Format/Quality Selection Panel
+        JPanel formatPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 8));
+        formatPanel.setOpaque(false);
+        JLabel formatLabel = new JLabel("Quality/Format:");
+        formatLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        
+        String[] formatOptions = {
+            "Best Quality (Recommended)",
+            "Worst Quality (Smallest File)",
+            "Video Only (No Audio)",
+            "Audio Only (MP3)",
+            "1080p (Full HD)",
+            "720p (HD)",
+            "480p (SD)",
+            "360p (Low)",
+            "240p (Very Low)",
+            "144p (Minimum)"
+        };
+        
+        formatComboBox = new JComboBox<>(formatOptions);
+        formatComboBox.setSelectedIndex(0);  // Default to best quality
+        formatComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        formatComboBox.setPreferredSize(new Dimension(240, 32));
+        
+        formatPanel.add(formatLabel);
+        formatPanel.add(formatComboBox);
+
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 12));
         controls.setOpaque(false);
 
@@ -135,7 +163,8 @@ public class YouTubeDownloaderGUI extends JFrame {
         controls.add(downloadButton);
         controls.add(goToYouTubeButton);
 
-        mainPanel.add(controls, BorderLayout.NORTH);
+        mainPanel.add(formatPanel, BorderLayout.NORTH);
+        mainPanel.add(controls, BorderLayout.CENTER);
 
         add(mainPanel, BorderLayout.CENTER);
 
@@ -228,6 +257,36 @@ public class YouTubeDownloaderGUI extends JFrame {
         }
     }
 
+    private String mapFormatUIToParam(String formatUI) {
+        /**
+         * Maps the UI format selection to the parameter passed to downloader.py
+         */
+        switch (formatUI) {
+            case "Best Quality (Recommended)":
+                return "best";
+            case "Worst Quality (Smallest File)":
+                return "worst";
+            case "Video Only (No Audio)":
+                return "video-only";
+            case "Audio Only (MP3)":
+                return "audio-only";
+            case "1080p (Full HD)":
+                return "1080p";
+            case "720p (HD)":
+                return "720p";
+            case "480p (SD)":
+                return "480p";
+            case "360p (Low)":
+                return "360p";
+            case "240p (Very Low)":
+                return "240p";
+            case "144p (Minimum)":
+                return "144p";
+            default:
+                return "best";
+        }
+    }
+
     private void downloadVideo() {
         String url = urlField.getText().trim();
         if (url.isEmpty()) {
@@ -244,14 +303,19 @@ public class YouTubeDownloaderGUI extends JFrame {
             return;
         }
 
-        outputArea.setText("Downloading, please wait...");
+        // Get the selected format
+        String selectedFormatUI = (String) formatComboBox.getSelectedItem();
+        String formatParam = mapFormatUIToParam(selectedFormatUI);
+
+        outputArea.setText("Downloading " + selectedFormatUI.toLowerCase() + ", please wait...");
         downloadProgressBar.setVisible(true);
         downloadProgressBar.setIndeterminate(true);
         downloadButton.setEnabled(false);
+        formatComboBox.setEnabled(false);
 
         new Thread(() -> {
             try {
-                ProcessBuilder pb = new ProcessBuilder("python", "downloader.py", url);
+                ProcessBuilder pb = new ProcessBuilder("python", "downloader.py", url, formatParam);
                 pb.redirectErrorStream(true);
                 Process process = pb.start();
 
@@ -278,7 +342,7 @@ public class YouTubeDownloaderGUI extends JFrame {
                     downloadProgressBar.setString("100%");
                     outputArea.append("\nDownload completed.");
                     statusLabel.setText("Completed");
-                    addHistory(url, "Completed");
+                    addHistory(url, "Completed - " + selectedFormatUI);
                 });
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
@@ -289,6 +353,7 @@ public class YouTubeDownloaderGUI extends JFrame {
             } finally {
                 SwingUtilities.invokeLater(() -> {
                     downloadButton.setEnabled(true);
+                    formatComboBox.setEnabled(true);
                     new Timer(2500, ev -> downloadProgressBar.setVisible(false)).start();
                 });
             }
@@ -382,6 +447,10 @@ public class YouTubeDownloaderGUI extends JFrame {
         outputArea.setForeground(fg);
         historyList.setBackground(darkMode ? new Color(40, 40, 55) : Color.WHITE);
         historyList.setForeground(fg);
+        
+        // Apply theme to format combobox
+        formatComboBox.setBackground(darkMode ? new Color(40, 40, 55) : Color.WHITE);
+        formatComboBox.setForeground(fg);
     }
 
     // Custom toggle switch UI
