@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -31,6 +33,11 @@ public class YouTubeDownloaderGUI extends JFrame {
     private final Color lightBg = new Color(245, 245, 248);
     private final Color darkText = Color.WHITE;
     private final Color lightText = Color.BLACK;
+
+    private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(
+            "^(https?://)?(www\\.|m\\.)?(youtube\\.com|youtu\\.be|youtube-nocookie\\.com)/"
+                    + "(watch\\?v=[^&\\s]+|embed/[^\\s]+|shorts/[^\\s]+|playlist\\?list=[^&\\s]+|[^\\s]+)$",
+            Pattern.CASE_INSENSITIVE);
 
     public YouTubeDownloaderGUI() {
         // Try to use Nimbus L&F for a modern look
@@ -337,11 +344,12 @@ public class YouTubeDownloaderGUI extends JFrame {
             return false;
         }
 
-        url = url.toLowerCase();
-
-        // Check for common YouTube URL patterns
-        return url.contains("youtube.com") || url.contains("youtu.be") ||
-               url.contains("youtube-nocookie.com");
+        try {
+            Matcher matcher = YOUTUBE_URL_PATTERN.matcher(url.trim());
+            return matcher.matches();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private Integer parseProgressPercent(String line) {

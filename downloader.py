@@ -1,12 +1,23 @@
 from yt_dlp import YoutubeDL
 import sys
 import os
+import re
+
+YOUTUBE_URL_PATTERN = re.compile(
+    r'^(https?://)?(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)/'
+    r'(watch\?v=[^&\s]+|embed/[^\s]+|shorts/[^\s]+|playlist\?list=[^&\s]+|[^\s]+)$',
+    re.IGNORECASE
+)
 
 if len(sys.argv) < 2:
     print("Usage: python downloader.py <YouTube URL>")
     sys.exit(1)
 
 url = sys.argv[1]
+
+if not YOUTUBE_URL_PATTERN.match(url.strip()):
+    print("Error: Invalid YouTube URL.")
+    sys.exit(1)
 
 # Ensure downloads directory exists next to the script
 downloads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
