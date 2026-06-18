@@ -14,6 +14,7 @@ import javax.swing.border.EmptyBorder;
 public class YouTubeDownloaderGUI extends JFrame {
     private JTextField urlField;
     private JButton downloadButton, goToYouTubeButton;
+    private JButton pauseButton, cancelButton;
     private JTextArea outputArea;
     private JProgressBar downloadProgressBar;
     private JToggleButton themeSwitchButton;
@@ -24,6 +25,9 @@ public class YouTubeDownloaderGUI extends JFrame {
     private DefaultListModel<String> historyModel;
     private JList<String> historyList;
     private List<String> downloadPaths;
+    private volatile Process currentProcess = null;
+    private volatile boolean isPaused = false;
+    private volatile boolean isDownloading = false;
 
     // History file path
     private static final String HISTORY_FILE = "history.txt";
@@ -160,7 +164,23 @@ public class YouTubeDownloaderGUI extends JFrame {
         goToYouTubeButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
         goToYouTubeButton.addActionListener(ev -> openYouTube());
 
+        // Pause / Resume button
+        pauseButton = new JButton("Pause");
+        styleButton(pauseButton, new Color(180, 180, 180));
+        pauseButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        pauseButton.addActionListener(ev -> pauseOrResume());
+        pauseButton.setEnabled(false);
+
+        // Cancel button
+        cancelButton = new JButton("Cancel");
+        styleButton(cancelButton, new Color(120, 120, 120));
+        cancelButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        cancelButton.addActionListener(ev -> cancelDownload());
+        cancelButton.setEnabled(false);
+
         controls.add(downloadButton);
+        controls.add(pauseButton);
+        controls.add(cancelButton);
         controls.add(goToYouTubeButton);
 
         mainPanel.add(formatPanel, BorderLayout.NORTH);
@@ -313,11 +333,25 @@ public class YouTubeDownloaderGUI extends JFrame {
         downloadButton.setEnabled(false);
         formatComboBox.setEnabled(false);
 
+        // If we were paused, this acts as a resume (yt_dlp will continue due to continuedl=True)
+        isPaused = false;
+
         new Thread(() -> {
             try {
                 ProcessBuilder pb = new ProcessBuilder("python", "downloader.py", url, formatParam);
                 pb.redirectErrorStream(true);
                 Process process = pb.start();
+
+                // Track the running process so pause/cancel can control it
+                currentProcess = process;
+                isDownloading = true;
+
+                SwingUtilities.invokeLater(() -> {
+                    pauseButton.setEnabled(true);
+                    cancelButton.setEnabled(true);
+                    downloadButton.setEnabled(false);
+                    downloadButton.setText("Downloading...");
+                });
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 String line;
@@ -337,13 +371,16 @@ public class YouTubeDownloaderGUI extends JFrame {
                 }
                 process.waitFor();
 
-                SwingUtilities.invokeLater(() -> {
-                    downloadProgressBar.setValue(100);
-                    downloadProgressBar.setString("100%");
-                    outputArea.append("\nDownload completed.");
-                    statusLabel.setText("Completed");
-                    addHistory(url, "Completed - " + selectedFormatUI);
-                });
+                // If download finished normally and wasn't cancelled
+                if (!isPaused) {
+                    SwingUtilities.invokeLater(() -> {
+                        downloadProgressBar.setValue(100);
+                        downloadProgressBar.setString("100%");
+                        outputArea.append("\nDownload completed.");
+                        statusLabel.setText("Completed");
+                        addHistory(url, "Completed - " + selectedFormatUI);
+                    });
+                }
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     outputArea.setText("Error: " + ex.getMessage());
@@ -351,13 +388,85 @@ public class YouTubeDownloaderGUI extends JFrame {
                     addHistory(url, "Error");
                 });
             } finally {
+                // Clear process state and reset UI
+                currentProcess = null;
+                isDownloading = false;
+                isPaused = false;
                 SwingUtilities.invokeLater(() -> {
                     downloadButton.setEnabled(true);
+                    downloadButton.setText("Download");
                     formatComboBox.setEnabled(true);
+                    pauseButton.setEnabled(false);
+                    cancelButton.setEnabled(false);
                     new Timer(2500, ev -> downloadProgressBar.setVisible(false)).start();
                 });
             }
         }).start();
+    }
+
+    private void pauseOrResume() {
+        if (isDownloading && currentProcess != null) {
+            // Pause: kill the process. yt_dlp supports resuming via continuedl=True
+            pauseDownload();
+        } else if (!isDownloading && !isPaused) {
+            // Nothing to resume
+        } else if (isPaused) {
+            // Resume by triggering downloadVideo() which will start a new process and resume
+            isPaused = false;
+            downloadVideo();
+        }
+    }
+
+    private void pauseDownload() {
+        if (currentProcess != null) {
+            try {
+                currentProcess.destroy();
+            } catch (Exception ignored) {}
+            isPaused = true;
+            isDownloading = false;
+            SwingUtilities.invokeLater(() -> {
+                statusLabel.setText("Paused");
+                pauseButton.setEnabled(false);
+                downloadButton.setEnabled(true);
+                downloadButton.setText("Resume");
+                cancelButton.setEnabled(true);
+            });
+        }
+    }
+
+    private void cancelDownload() {
+        // Kill running process if any
+        if (currentProcess != null) {
+            try {
+                currentProcess.destroyForcibly();
+            } catch (Exception ignored) {}
+        }
+        isPaused = false;
+        isDownloading = false;
+
+        // Remove partial download files (.part) in downloads directory
+        try {
+            File downloadsDir = new File(System.getProperty("user.dir"), "downloads");
+            if (downloadsDir.exists() && downloadsDir.isDirectory()) {
+                File[] parts = downloadsDir.listFiles((dir, name) -> name.endsWith(".part") || name.endsWith(".part.~best~"));
+                if (parts != null) {
+                    for (File f : parts) {
+                        try { f.delete(); } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        SwingUtilities.invokeLater(() -> {
+            outputArea.append("\nDownload cancelled.");
+            statusLabel.setText("Cancelled");
+            addHistory(urlField.getText().trim(), "Cancelled");
+            downloadButton.setEnabled(true);
+            downloadButton.setText("Download");
+            pauseButton.setEnabled(false);
+            cancelButton.setEnabled(false);
+            new Timer(1500, ev -> downloadProgressBar.setVisible(false)).start();
+        });
     }
 
     private void openDownloads() {
